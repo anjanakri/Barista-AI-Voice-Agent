@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Coffee Shop Barista</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+
+  </head>
+
+  <body>
+    <h1>☕ Coffee Shop Voice Barista</h1>
+    <p class="subtitle">
+      <b>Barista AI Voice Agent. Coded by - Anjana</b>
+    </p>
+
+    <div id="main-container">
+      <!-- LEFT COLUMN -->
+      <div id="left-column">
+        <div class="controls">
+          <button id="startBtn">Start</button>
+          <button id="stopBtn" disabled>Stop</button>
+        </div>
+
+        <div id="status" style="margin:6px 0;color:#444;font-size:13px"></div>
+
+        <h2>Conversation</h2>
+        <div id="conversation"></div>
+
+        <h2>Order Summary</h2>
+        <pre id="orderJson">{}</pre>
+
+        <button id="saveBtn" disabled class="save-btn">Save Order</button>
+
+        <h2>Drink Preview</h2>
+        <div id="cupPreview"></div>
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div id="right-column">
+        <h2>Menu</h2>
+        <div id="menu">
+          <div class="menu-section">
+            <h3>Drinks</h3>
+            <ul>
+              <li>Latte</li>
+              <li>Americano</li>
+              <li>Cappuccino</li>
+              <li>Mocha</li>
+              <li>Espresso</li>
+              <li>Black Tea</li>
+            </ul>
+          </div>
+
+          <div class="menu-section">
+            <h3>Sizes</h3>
+            <ul>
+              <li>Small</li>
+              <li>Medium</li>
+              <li>Large</li>
+            </ul>
+          </div>
+
+          <div class="menu-section">
+            <h3>Milk Options</h3>
+            <ul>
+              <li>Whole Milk</li>
+              <li>Skim Milk</li>
+              <li>Oat Milk</li>
+              <li>Almond Milk</li>
+              <li>Soy Milk</li>
+            </ul>
+          </div>
+
+          <div class="menu-section">
+            <h3>Extras</h3>
+            <ul>
+              <li>Whipped Cream</li>
+              <li>Extra Shot</li>
+              <li>Caramel Syrup</li>
+              <li>Vanilla Syrup</li>
+              <li>Chocolate Drizzle</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ====== Globals & state ======
+      let recognition = null;
+      let currentField = null;
+      let useServerTTS = true;
+      let shouldAutoRestart = false; // controls auto-resume after TTS
+      let canShowPreview = false;
+
+      const orderState = {
+        drinkType: "",
+        size: "",
+        milk: "",
+        extras: [],
+        name: "",
+      };
+
+      const requiredFields = ["drinkType", "size", "milk", "name"];
+
+      const questions = {
+        drinkType: "What drink would you like?",
+        size: "What size? Small, Medium, or Large?",
+        milk: "What type of milk do you prefer?",
+        extras: "Any extras?",
+        name: "What name should I put on the order?",
+      };
+
+      // ====== Element refs ======
+      const conversation = document.getElementById("conversation");
+      const orderJson = document.getElementById("orderJson");
+      const cupPreview = document.getElementById("cupPreview");
+      const statusDiv = document.getElementById("status");
+      const startBtn = document.getElementById("startBtn");
+      const stopBtn = document.getElementById("stopBtn");
+      const saveBtn = document.getElementById("saveBtn");
+
+      // ====== Helpers ======
+      function appendMsg(who, text) {
+        const div = document.createElement("div");
+        div.innerHTML = `<strong>${who}:</strong> ${text}`;
+        conversation.appendChild(div);
+        conversation.scrollTop = conversation.scrollHeight;
+      }
+
+      async function speak(text) {
+        // if no TTS server usage, fallback to browser TTS and auto-restart
+        if (!useServerTTS) {
+          const u = new SpeechSynthesisUtterance(text);
+          u.onend = () => {
+            if (shouldAutoRestart) startRecognition();
+          };
+          speechSynthesis.cancel();
+          speechSynthesis.speak(u);
+          return;
+        }
+
+        try {
+          const resp = await fetch("/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text }),
+          });
+          if (!resp.ok) {
+            console.error("TTS call failed", await resp.text());
+            // fallback to browser TTS
+            useServerTTS = false;
+            const u = new SpeechSynthesisUtterance(text);
+            u.onend = () => {
+              if (shouldAutoRestart) startRecognition();
+            };
+            speechSynthesis.cancel();
+            speechSynthesis.speak(u);
+            return;
+          }
+          const blob = await resp.blob();
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
+
+          audio.onended = () => {
+            URL.revokeObjectURL(url);
+            if (shouldAutoRestart) startRecognition();
+          };
+
+          audio.play();
+        } catch (err) {
+          console.error("TTS failed", err);
+          // fallback
+          const u = new SpeechSynthesisUtterance(text);
+          u.onend = () => {
+            if (shouldAutoRestart) startRecognition();
+          };
+          speechSynthesis.cancel();
+          speechSynthesis.speak(u);
+        }
+      }
+
+      function updateUI() {
+        orderJson.textContent = JSON.stringify(orderState, null, 2);
+        updateCup();
+      }
+
+      function updateCup() {
+        cupPreview.innerHTML = "";
+        if (!canShowPreview) return;
+
+        const cup = document.createElement("div");
+        cup.className = "cup";
+
+        cup.innerHTML = `
+          <img src="/static/order.jpeg" class="drink-image" />
+          <div class="details">
+            <p><strong>Size:</strong> ${orderState.size || "-"}</p>
+            <p><strong>Drink:</strong> ${orderState.drinkType || "-"}</p>
+            <p><strong>Milk:</strong> ${orderState.milk || "-"}</p>
+            <p><strong>Extras:</strong> ${
+              orderState.extras.length ? orderState.extras.join(", ") : "None"
+            }</p>
+            <p><strong>Name:</strong> ${orderState.name || "-"}</p>
+          </div>
+        `;
+
+        cupPreview.appendChild(cup);
+      }
+
+      // ====== NLU-ish parsing ======
+      function parseField(text, field) {
+        text = text.toLowerCase();
+
+        if (field === "size") {
+          if (text.includes("small")) return "Small";
+          if (text.includes("medium") || text.includes("regular")) return "Medium";
+          if (text.includes("large")) return "Large";
+        }
+
+        if (field === "drinkType") {
+          const drinks = [
+            "latte",
+            "americano",
+            "cappuccino",
+            "mocha",
+            "espresso",
+            "tea",
+            "black tea",
+            "cold brew",
+          ];
+          for (const d of drinks) {
+            if (text.includes(d)) return d.charAt(0).toUpperCase() + d.slice(1);
+          }
+          // fallback: if short phrase, accept it
+          const words = text.split(/\s+/).filter(Boolean);
+          if (words.length <= 3) return text.trim();
+        }
+
+        if (field === "milk") {
+          const milks = {
+            oat: "Oat Milk",
+            almond: "Almond Milk",
+            soy: "Soy Milk",
+            skim: "Skim Milk",
+            whole: "Whole Milk",
+            none: "None",
+          };
+          for (const k in milks) if (text.includes(k)) return milks[k];
+        }
+
+        if (field === "name") {
+          return text.replace(/[^a-zA-Z ]/g, "").split(" ").pop() || text;
+        }
+
+        if (field === "extras") {
+          if (text.includes("no") || text.includes("none")) return [];
+          const known = [
+            "whipped cream",
+            "whipped",
+            "extra shot",
+            "shot",
+            "caramel",
+            "vanilla",
+            "chocolate",
+            "syrup",
+            "drizzle",
+            "honey",
+            "sugar",
+            "milk foam",
+            "No Extras"
+          ];
+          const found = [];
+          for (const e of known) if (text.includes(e)) {
+            // normalize duplicates
+            if (e === "whipped") found.push("whipped cream");
+            else if (e === "shot") found.push("extra shot");
+            else found.push(e.includes(" ") ? e : e + (e === "caramel" ? " syrup" : ""));
+          }
+          return [...new Set(found)];
+        }
+
+        return text;
+      }
+
+      function isComplete() {
+        return (
+          orderState.drinkType &&
+          orderState.size &&
+          orderState.milk &&
+          orderState.name &&
+          orderState.extras !== null
+        );
+      }
+
+      // ====== Conversation flow ======
+      function askNext() {
+        for (const f of requiredFields) {
+          if (!orderState[f]) {
+            currentField = f;
+            appendMsg("Barista", questions[f]);
+            speak(questions[f]);
+            return;
+          }
+        }
+        // ask extras after required fields
+        currentField = "extras";
+        appendMsg("Barista", questions["extras"]);
+        speak(questions["extras"]);
+      }
+
+      function handleAnswer(text) {
+        // If user explicitly mentions extras, switch to extras
+        if (text.toLowerCase().includes("extra") || text.toLowerCase().includes("add")) {
+          currentField = "extras";
+        }
+
+        const field = currentField || "drinkType"; // fallback
+        const parsed = parseField(text, field);
+
+        if (field === "extras") {
+          if (!parsed || (Array.isArray(parsed) && parsed.length === 0)) {
+            orderState.extras = [];
+            appendMsg("Barista", "Okay — no extras.");
+            speak("Okay — no extras.");
+            updateUI();
+            return;
+          }
+          orderState.extras = parsed;
+          appendMsg("Barista", "Extras added: " + parsed.join(", "));
+          speak("Extras added: " + parsed.join(", "));
+          updateUI();
+          saveBtn.disabled = false;
+          return;
+        }
+
+        // Normal field fill
+        orderState[field] = parsed;
+        updateUI();
+
+        // Determine missing required fields
+        const missing = requiredFields.filter((f) => !orderState[f]);
+
+        if (missing.length === 0 && (!orderState.extras || orderState.extras.length === 0)) {
+          currentField = "extras";
+          appendMsg("Barista", questions["extras"]);
+          speak(questions["extras"]);
+          return;
+        }
+
+        if (missing.length === 0) {
+          appendMsg("Barista", "Everything looks good! Would you like me to save the order?");
+          speak("Everything looks good! Would you like me to save the order?");
+          saveBtn.disabled = false;
+          return;
+        }
+
+        currentField = missing[0];
+        appendMsg("Barista", questions[currentField]);
+        speak(questions[currentField]);
+      }
+
+      // ====== Recognition control ======
+      function startRecognition() {
+        // create a fresh recognition instance each time to avoid stale state
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          statusDiv.textContent = "SpeechRecognition not supported in this browser. Use Chrome.";
+          return;
+        }
+
+        if (recognition) {
+          try { recognition.abort(); } catch (e) {}
+          recognition = null;
+        }
+
+        recognition = new SpeechRecognition();
+        recognition.lang = "en-US";
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+        recognition.continuous = false; // keep short single-utterance recognition
+
+        recognition.onresult = (event) => {
+          const text = event.results[0][0].transcript;
+          appendMsg("You", text);
+          handleAnswer(text);
+        };
+
+        recognition.onerror = (e) => {
+          console.warn("Recognition error", e);
+        };
+
+        recognition.onend = () => {
+          // If auto-restart is enabled, we do NOT restart here because TTS will restart after audio ends.
+          // But if TTS is not playing and shouldAutoRestart is true, we restart so it's conversational.
+          if (shouldAutoRestart) {
+            // small delay to avoid immediate restart before TTS begins
+            setTimeout(() => {
+              try { recognition.start(); } catch (e) {}
+            }, 250);
+          } else {
+            statusDiv.textContent = "Stopped listening.";
+            stopBtn.disabled = true;
+            startBtn.disabled = false;
+          }
+        };
+
+        try {
+          recognition.start();
+          statusDiv.textContent = "Listening...";
+          appendMsg("System", "Listening...");
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+        } catch (e) {
+          console.error("Could not start recognition", e);
+        }
+      }
+
+      function stopRecognition() {
+        shouldAutoRestart = false;
+        if (recognition) {
+          try { recognition.stop(); } catch (e) {}
+          recognition = null;
+        }
+        statusDiv.textContent = "Microphone stopped.";
+        stopBtn.disabled = true;
+        startBtn.disabled = false;
+      }
+
+      // ====== Button handlers ======
+      startBtn.addEventListener("click", () => {
+        shouldAutoRestart = true; // allow auto-restart after TTS
+        startRecognition();
+        // kick off the flow: ask the first question if nothing started
+        if (!orderState.drinkType && !orderState.size && !orderState.milk && !orderState.name) {
+          currentField = "drinkType";
+          appendMsg("Barista", questions["drinkType"]);
+          speak(questions["drinkType"]);
+        }
+      });
+
+      stopBtn.addEventListener("click", () => {
+        stopRecognition();
+      });
+
+      saveBtn.addEventListener("click", async () => {
+        // Save order to server
+        try {
+          const resp = await fetch("/save_order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(orderState),
+          });
+          const j = await resp.json();
+          appendMsg("System", "Order saved: " + j.file);
+          speak("Order saved successfully.");
+          canShowPreview = true;
+          updateCup();
+        } catch (e) {
+          console.error("Save failed", e);
+          appendMsg("System", "Save failed");
+          speak("Saving failed. Please try again.");
+        }
+      });
+
+      // init UI
+      updateUI();
+    </script>
+  </body>
+</html>

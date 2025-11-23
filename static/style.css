@@ -1,0 +1,167 @@
+body {
+  font-family: Arial, sans-serif;
+  padding: 10px;
+  background-color: #795757;
+
+}
+
+h1 {
+  font-family: 'Pacifico', cursive;
+  font-size: 40px;
+  color: #FFF0D1;  
+  text-align: center;
+  margin-top: -7px;
+  margin-bottom: 8px;
+  text-shadow: 5px 8px #3B3030;
+}
+
+
+
+.subtitle {
+  font-size: 17px;
+  color: #fff;
+  margin-top: 1px;
+  margin-bottom: 18px;
+  text-align: center;
+  font-weight: 500;
+}
+
+
+/* Smaller overall grid */
+#main-container {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 15px;
+}
+
+/* LEFT COLUMN */
+#left-column {
+  background-color: #FFF0D1;
+  border: 2px solid #664343;
+  padding: 12px;
+  border-radius: 10px;
+  box-shadow: 0 0 5px #a05c31;
+}
+
+.controls button {
+  padding: 7px 14px;
+  font-size: 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  color:#957C62;
+  transition: 0.3s ease;
+}
+
+#startBtn {
+  background-color: #3B3030;
+color: white;
+border: none;
+      /* coffee brown */
+}
+
+#startBtn:hover {
+  background-color: #664343;
+  transform: scale(1.05);
+}
+
+#stopBtn {
+  background-color: #3B3030;
+color: white;
+border: none;
+
+}
+
+#stopBtn:hover {
+  background-color: #664343;
+
+  transform: scale(1.05);
+}
+
+/* Conversation box smaller */
+#conversation {
+  height: 180px;
+  background-color: #FCE7C8; /* optional lighter variant */
+border: 1px solid #664343;
+  padding: 8px;
+  border-radius: 6px;
+  overflow-y: auto;
+  font-size: 14px;
+}
+
+/* Order Summary smaller */
+pre {
+  background: #ebd6d6;
+  color: #725858;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 15px;
+  height: 120px;
+  overflow-y: auto;
+}
+
+/* Save button smaller */
+.save-btn {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  background-color: #3B3030;
+color: white;
+border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+/* RIGHT COLUMN */
+#right-column {
+  background-color: #FFF0D1;
+  border: 2px solid #664343;
+  padding: 12px;
+  border-radius: 10px;
+  box-shadow: 0 0 5px #a05c31;
+}
+
+/* Menu compact */
+#menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.menu-section {
+  padding: 8px;
+  background-color: #FFE8C6;
+border: 1px solid #664343;
+
+  border-radius: 6px;
+  box-shadow: inset 0 0 3px #ddd;
+  font-size: 13px;
+}
+
+.menu-section ul {
+  margin: 5px 0;
+  font-size: 13px;
+}
+
+/* Drink Preview smaller */
+.cup {
+  width: 100%;
+  padding: 10px;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 2px solid #c59b6d;
+  text-align: center;
+  box-shadow: 0 0 6px #ddd;
+  margin-top: 10px;
+}
+
+.drink-image {
+  width: 70px;
+  margin: 0 auto 8px auto;
+}
+
+.details {
+  font-size: 13px;
+}

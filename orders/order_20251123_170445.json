@@ -1,0 +1,10 @@
+{
+  "drinkType": "Tea",
+  "size": "Small",
+  "milk": "Whole Milk",
+  "extras": [
+    "extra shot"
+  ],
+  "name": "coder",
+  "null": "hi there"
+}

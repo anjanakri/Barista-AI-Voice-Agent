@@ -1,0 +1,12 @@
+{
+  "drinkType": "Cappuccino",
+  "size": "Large",
+  "milk": "Whole Milk",
+  "extras": [
+    "chocolate",
+    "drizzle",
+    "chocolate drizzle"
+  ],
+  "name": "anjana",
+  "null": "hey hi"
+}

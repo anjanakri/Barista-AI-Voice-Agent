@@ -1,0 +1,12 @@
+{
+  "drinkType": "black",
+  "size": "Small",
+  "milk": "Whole Milk",
+  "extras": [
+    "chocolate",
+    "drizzle",
+    "chocolate drizzle"
+  ],
+  "name": "anjana",
+  "null": "hey hi there"
+}

@@ -1,0 +1,9 @@
+{
+  "drinkType": "Cappuccino",
+  "size": "Medium",
+  "milk": "Whole Milk",
+  "extras": [
+    "chocolate"
+  ],
+  "name": "anjana"
+}
